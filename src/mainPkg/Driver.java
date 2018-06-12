@@ -246,7 +246,7 @@ public class Driver extends JFrame{
 		
 		String currDate = dtf.format(now);
 		
-		String file1path = args[0];
+		String nbSv = args[0];
 		
 		String file2path = args[1];
 		
@@ -265,7 +265,7 @@ public class Driver extends JFrame{
 		{
 			System.out.println("Reading Inputs...");
 			
-			KaryFatTree t1 = readInputs(file1path, file2path);
+			KaryFatTree t1 = readInputs(nbSv, file2path);
 			
 			System.out.println("Writing Results...");
 			
@@ -278,7 +278,7 @@ public class Driver extends JFrame{
 	}
 
 	
-	public static KaryFatTree readInputs(String file1, String file2)
+	public static KaryFatTree readInputs(String nbSvs, String file2)
 	{
 		Scanner reader = null;
 		
@@ -288,6 +288,9 @@ public class Driver extends JFrame{
 		
 		int bwidth = 2;
 		
+		kvalue = Integer.parseInt(nbSvs);
+		
+		/*
 		try
 		{
 			reader = new Scanner(new FileReader(file1));
@@ -345,6 +348,7 @@ public class Driver extends JFrame{
 			if (reader != null)
 				reader.close();
 		}
+		*/
 		
 		// Reading File #2
 		
