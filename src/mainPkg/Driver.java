@@ -605,6 +605,10 @@ public class Driver extends JFrame{
 				k1.shuffle2(shufflePct);
 				k1.consolidate2(minL, maxL);
 			}
+			else if (scToken.equals("DSHF"))
+			{
+				k1.dlShuffle();
+			}
 		}
 		
 		//System.out.println("Scenarios complete.");
@@ -835,6 +839,40 @@ public class Driver extends JFrame{
 				}
 			}
 			
+			if (nTok.equals("DSHF"))
+			{
+				outName = "final_state_" + fs.getType() + "_" + scNum + ".txt";
+				
+				finalOutPath = Paths.get(outPath, outName);
+				
+				try
+				{
+					pout = new PrintWriter(finalOutPath.toString());
+					
+					pout.println("SCENARIO: " + fs.getType());
+					
+					if (fs.getDowngraded())
+						pout.println("DOWNGRADED");
+					
+					pout.println("VM.PER.SERVER:");
+					
+					for (Server sv : fs.getServers())
+					{
+						pout.println(sv.serverVMOutput());
+					}
+				}
+				catch (IOException e)
+				{
+					e.printStackTrace();
+					return false;
+				}
+				finally
+				{
+					if (pout != null)
+						pout.close();
+				}
+			}
+			
 			scNum++;
 		}
 		
@@ -865,7 +903,8 @@ public class Driver extends JFrame{
 		
 		for (FinalConfig fs : tree.getFinalStates())
 		{
-			String fname = "final_state_" + fs.getType() + "_" + fsNum + ".csv";
+			String fname = "final_state_SV" + tree.getSVlist().size() + "_"+ fs.getType() + 
+					"_" + fsNum + ".csv";
 			
 			finalPathCSV = Paths.get(outPath, fname);
 			

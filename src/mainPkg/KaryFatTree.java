@@ -1792,4 +1792,87 @@ public class KaryFatTree {
 		
 		restore();
 	}
+	
+	/**
+	 * Shuffle by Removing all VMs from Servers and redistributing them
+	 */
+	public void dlShuffle()
+	{
+		System.out.println("Beginning Deadlock Shuffle...");
+		
+		boolean finished = false;
+		
+		ArrayList<VirtualMachine> vmHold = new ArrayList<VirtualMachine>();
+		
+		while (!finished)
+		{
+			VirtualMachine cvm;
+			
+			for (Server s : servers)
+			{
+				// if server has vms remaining
+				while (s.getNbVMs() != 0)
+				{
+					// remove vm from sever and add it to list
+					cvm = s.removeVM(0);
+					vmHold.add(cvm);
+				}
+			}
+			
+			// start by adding largest VMs first
+			Collections.sort(vmHold, VirtualMachine.vmSize2Comparator);
+			
+			int ind = 0;
+			int vmTotal = vmHold.size();
+			
+			//for all VMs in the system
+			for (int i = 0; i < vmTotal; i++)
+			{
+				cvm = vmHold.get(ind);
+				
+				Collections.shuffle(servers);
+				
+				int j = 0;
+				boolean vmIsMoved = false;
+				
+				Server curr;
+				
+				while (j < servers.size() && !vmIsMoved)
+				{
+					curr = servers.get(j);
+					
+					//if server has space for current vm
+					if (curr.canMoveIn(cvm))
+					{
+						// remove VM from list
+						VirtualMachine added = vmHold.remove(ind);
+						//set new host
+						added.setHost(curr.getName());
+						// add to server
+						curr.addVM(added);
+						// vm has been moved
+						vmIsMoved = true;
+					}
+					
+					j++;
+				}
+			}
+			
+			System.out.println("undistributed VMs: " + vmHold.size());
+			
+			if (vmHold.isEmpty())
+				finished = true;
+		}
+		
+		System.out.println("Deadlock Shuffle complete");
+		
+		// add new final config
+		Collections.sort(servers, Server.svNumComparator);
+		
+		FinalConfig dshfConf = new FinalConfig("DSHF", servers);
+		
+		addFinal(dshfConf);
+		
+		restore();
+	}
 }
