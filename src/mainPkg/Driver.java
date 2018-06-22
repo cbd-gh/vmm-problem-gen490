@@ -213,7 +213,7 @@ public class Driver extends JFrame{
 					
 					fileOutput(t1, txtOutFile.toString());
 					
-					fileOutputCSV(t1, csvOutFile.toString());
+					//fileOutputCSV(t1, csvOutFile.toString());
 				}
 				
 				System.out.println("Completed.");
@@ -240,39 +240,30 @@ public class Driver extends JFrame{
 		
 		//Driver app = new Driver();
 		
-		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSS");
-		
-		LocalDateTime now = LocalDateTime.now();
-		
-		String currDate = dtf.format(now);
-		
 		String nbSv = args[0];
 		
 		String file2path = args[1];
 		
 		String outputP = args[2];
 		
-		String nDir = "txt_Output_" + currDate;
-		String nDir2 = "csv_Output_" + currDate;
+		//String nDir = "txt_Output_" + currDate;
+		//String nDir2 = "csv_Output_" + currDate;
 		
-		Path oPath = Paths.get(outputP, nDir);
-		Path oPath2 = Paths.get(outputP, nDir2);
+		//Path oPath = Paths.get(outputP, nDir);
+		//Path oPath2 = Paths.get(outputP, nDir2);
 		
-		File txtOutFile = new File(oPath.toString());
-		File csvOutFile = new File(oPath2.toString());
+		//File txtOutFile = new File(oPath.toString());
+		//File csvOutFile = new File(oPath2.toString());
 		
-		if (txtOutFile.mkdirs() && csvOutFile.mkdirs())
-		{
-			System.out.println("Reading Inputs...");
+		System.out.println("Reading Inputs...");
 			
-			KaryFatTree t1 = readInputs(nbSv, file2path);
+		KaryFatTree t1 = readInputs(nbSv, file2path);
 			
-			System.out.println("Writing Results...");
+		System.out.println("Writing Results...");
 			
-			fileOutput(t1, txtOutFile.toString());
-			
-			fileOutputCSV(t1, csvOutFile.toString());
-		}
+		//fileOutput(t1, txtOutFile.toString());
+		
+		fileOutputCSV(t1, outputP);
 		
 		System.out.println("Completed.");
 	}
@@ -901,14 +892,25 @@ public class Driver extends JFrame{
 		
 		int fsNum = 0;
 		
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy-HH-mm-ss-SSS");
+		
 		for (FinalConfig fs : tree.getFinalStates())
 		{
-			String fname = "final_state_SV" + tree.getSVlist().size() + "_"+ fs.getType() + 
-					"_" + fsNum + ".csv";
+			
+			LocalDateTime now = LocalDateTime.now();
+			
+			String currDate = dtf.format(now);
+			
+			tree.recordVMs();
+			
+			int vmTot = tree.getVMnum();
+			
+			String fname = "migPr_SV" + tree.getSVlist().size() + "_" + "VM" + 
+			vmTot + "_" + fs.getType() + "_" + fsNum + "_" + currDate + ".csv";
 			
 			finalPathCSV = Paths.get(outPath, fname);
 			
-			csvMaker2(tree.getSVlist(), fs.getServers(), finalPathCSV.toString());
+			csvMaker2(tree.getSVlist(), fs.getServers(), finalPathCSV.toString(), tree);
 			
 			fsNum++;
 		}
@@ -1030,7 +1032,15 @@ public class Driver extends JFrame{
 		}
 	}
 	
-	public static void csvMaker2(ArrayList<Server> svsInit, ArrayList<Server> svsFinal, String outpath)
+	/**
+	 * currently in use
+	 * 
+	 * @param svsInit
+	 * @param svsFinal
+	 * @param outpath
+	 * @param tree
+	 */
+	public static void csvMaker2(ArrayList<Server> svsInit, ArrayList<Server> svsFinal, String outpath, KaryFatTree tree)
 	{
 		PrintWriter pout = null;
 		
@@ -1140,6 +1150,24 @@ public class Driver extends JFrame{
 				pout.println(svLine);
 			}
 			
+			// buffer
+			pout.println(",");
+			pout.println(",");
+			
+			pout.println("TREE DATA,");
+			
+			// tree info
+			
+			pout.print("CLASSES:,");
+			
+			ArrayList<ServerGroup> svg = tree.getSVclasses();
+			
+			for (ServerGroup svgr : svg)
+			{
+				pout.print(svgr.classStr() + ",");
+			}
+			
+			pout.println();
 			
 		}
 		catch (IOException e)

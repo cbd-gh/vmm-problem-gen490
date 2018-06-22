@@ -1798,7 +1798,7 @@ public class KaryFatTree {
 	 */
 	public void dlShuffle()
 	{
-		System.out.println("Beginning Deadlock Shuffle...");
+		//System.out.println("Beginning Deadlock Shuffle...");
 		
 		boolean finished = false;
 		
@@ -1858,7 +1858,7 @@ public class KaryFatTree {
 				}
 			}
 			
-			System.out.println("undistributed VMs: " + vmHold.size());
+			//System.out.println("undistributed VMs: " + vmHold.size());
 			
 			if (vmHold.isEmpty())
 				finished = true;

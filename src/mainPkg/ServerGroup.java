@@ -77,6 +77,18 @@ public class ServerGroup {
 	}
 	
 	/**
+	 * String Representation of class
+	 * 
+	 * @return
+	 */
+	public String classStr()
+	{
+		String str = proportion + "-" + maxLoad;
+		
+		return str;
+	}
+	
+	/**
 	 * Comparator for maxload of server groups
 	 */
 	public static Comparator<ServerGroup> sgLoadComparator = new Comparator<ServerGroup>() {
