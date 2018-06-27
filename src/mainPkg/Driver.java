@@ -207,7 +207,7 @@ public class Driver extends JFrame{
 				{
 					System.out.println("Reading Inputs...");
 					
-					KaryFatTree t1 = readInputs(file1path, file2path);
+					KaryFatTree t1 = readInputs(file2path);
 					
 					System.out.println("Writing Results...");
 					
@@ -240,11 +240,11 @@ public class Driver extends JFrame{
 		
 		//Driver app = new Driver();
 		
-		String nbSv = args[0];
+		//String nbSv = args[0];
 		
-		String file2path = args[1];
+		//String file2path = args[1];
 		
-		String outputP = args[2];
+		String inputDir = args[0];
 		
 		//String nDir = "txt_Output_" + currDate;
 		//String nDir2 = "csv_Output_" + currDate;
@@ -255,21 +255,44 @@ public class Driver extends JFrame{
 		//File txtOutFile = new File(oPath.toString());
 		//File csvOutFile = new File(oPath2.toString());
 		
-		System.out.println("Reading Inputs...");
+		File wdir = new File(inputDir);
+		
+		// list of all files in directory with .txt extension
+		File[] inFiles = wdir.listFiles(new FilenameFilter() {
+			public boolean accept(File dir, String name){
+				return name.toLowerCase().endsWith(".txt");
+			}
+		});
+		
+		// for each .txt in the folder
+		for (File f : inFiles)
+		{
+			System.out.println("READING: " + f.getPath());
 			
-		KaryFatTree t1 = readInputs(nbSv, file2path);
+			KaryFatTree t1 = readInputs(f.getPath());
 			
-		System.out.println("Writing Results...");
+			System.out.println("Writing results.");
+			
+			fileOutputCSV(t1, inputDir);
+		}
+		
+		System.out.println("COMPLETE.");
+		
+		//System.out.println("Reading Inputs...");
+			
+		//KaryFatTree t1 = readInputs(nbSv, file2path);
+			
+		//System.out.println("Writing Results...");
 			
 		//fileOutput(t1, txtOutFile.toString());
 		
-		fileOutputCSV(t1, outputP);
+		//fileOutputCSV(t1, outputP);
 		
-		System.out.println("Completed.");
+		//System.out.println("Completed.");
 	}
 
 	
-	public static KaryFatTree readInputs(String nbSvs, String file2)
+	public static KaryFatTree readInputs(String file2)
 	{
 		Scanner reader = null;
 		
@@ -279,7 +302,7 @@ public class Driver extends JFrame{
 		
 		int bwidth = 2;
 		
-		kvalue = Integer.parseInt(nbSvs);
+		kvalue = 10;
 		
 		/*
 		try
@@ -363,7 +386,7 @@ public class Driver extends JFrame{
 		
 		try
 		{
-			System.out.println("Reading from second file...");
+			//System.out.println("Reading from second file...");
 			
 			reader = new Scanner(new FileReader(file2));
 			
@@ -396,6 +419,12 @@ public class Driver extends JFrame{
 						}
 						
 						//System.out.println("Server CPU values recorded.");
+					}
+					else if (nextToken.equals("NB.SERVERS:"))
+					{
+						nextToken = strTok.nextToken();
+						
+						kvalue = Integer.parseInt(nextToken);
 					}
 					else if (nextToken.equals("SVMEM:"))
 					{
@@ -437,7 +466,7 @@ public class Driver extends JFrame{
 						
 						paired = Boolean.parseBoolean(nextToken);
 					}
-					else if (nextToken.equals("VMLOAD:"))
+					else if (nextToken.equals("SERVER.CLASSES:"))
 					{
 						while (strTok.hasMoreTokens())
 						{
