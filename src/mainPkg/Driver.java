@@ -188,7 +188,7 @@ public class Driver extends JFrame{
 				
 				String currDate = dtf.format(now);
 				
-				String file1path = inPath1.getText();
+				//String file1path = inPath1.getText();
 				
 				String file2path = inPath2.getText();
 				
@@ -267,13 +267,19 @@ public class Driver extends JFrame{
 		// for each .txt in the folder
 		for (File f : inFiles)
 		{
+			String fPlusExt = f.getName();
+			
+			String fNoExt = fPlusExt.substring(0, fPlusExt.length() - 4);
+			
+			System.out.println("Fname:" + fNoExt);
+			
 			System.out.println("READING: " + f.getPath());
 			
 			KaryFatTree t1 = readInputs(f.getPath());
 			
 			System.out.println("Writing results.");
 			
-			fileOutputCSV(t1, inputDir);
+			fileOutputCSV(t1, inputDir, fNoExt);
 		}
 		
 		System.out.println("COMPLETE.");
@@ -300,7 +306,7 @@ public class Driver extends JFrame{
 		
 		int kvalue = 2;
 		
-		int bwidth = 2;
+		//int bwidth = 2;
 		
 		kvalue = 10;
 		
@@ -536,7 +542,7 @@ public class Driver extends JFrame{
 		
 		//System.out.println("Creating loadCLasses list...");
 		
-		int i = 1;
+		//int i = 1;
 		
 		for (String sg : loadClasses)
 		{
@@ -557,7 +563,7 @@ public class Driver extends JFrame{
 			
 			svclasses.add(temp);
 			
-			i++;
+			//i++;
 		}
 		
 		k1.setSVclasses(svclasses);
@@ -905,7 +911,7 @@ public class Driver extends JFrame{
 	 * @param tree server configuration
 	 * @param outPath path to write
 	 */
-	public static void fileOutputCSV(KaryFatTree tree, String outPath)
+	public static void fileOutputCSV(KaryFatTree tree, String outPath, String inName)
 	{
 		// INITIAL STATE CSV
 		
@@ -919,23 +925,23 @@ public class Driver extends JFrame{
 		
 		Path finalPathCSV;
 		
-		int fsNum = 0;
+		int fsNum = 1;
 		
-		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy-HH-mm-ss-SSS");
+		//DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MM-yyyy-HH-mm-ss-SSS");
 		
 		for (FinalConfig fs : tree.getFinalStates())
 		{
 			
-			LocalDateTime now = LocalDateTime.now();
+			//LocalDateTime now = LocalDateTime.now();
 			
-			String currDate = dtf.format(now);
+			//String currDate = dtf.format(now);
 			
 			tree.recordVMs();
 			
-			int vmTot = tree.getVMnum();
+			//int vmTot = tree.getVMnum();
 			
-			String fname = "migPr_SV" + tree.getSVlist().size() + "_" + "VM" + 
-			vmTot + "_" + fs.getType() + "_" + fsNum + "_" + currDate + ".csv";
+			String fname = "out_" + inName + "_" + fs.getType() + 
+					"_" + fsNum + ".csv";
 			
 			finalPathCSV = Paths.get(outPath, fname);
 			
