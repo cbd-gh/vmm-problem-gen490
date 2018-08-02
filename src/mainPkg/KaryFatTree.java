@@ -38,6 +38,7 @@ public class KaryFatTree {
 	private ArrayList<VirtualMachine> vmList = new ArrayList<VirtualMachine>();
 	// type of network
 	private String networkType;
+
 	
 	// CONSTRUCTORS
 	
@@ -273,6 +274,29 @@ public class KaryFatTree {
 	public Server getServer(int index)
 	{
 		return servers.get(index);
+	}
+	
+	/**
+	 * return server from list by name
+	 * 
+	 * @param name name of server to retrieve
+	 * @return server with matching name, null otherwise
+	 */
+	public Server getServer(String name)
+	{
+		Server returned = null;
+		
+		for (Server s : servers)
+		{
+			if (s.getName().equals(name))
+			{
+				returned = s;
+				
+				return returned;
+			}
+		}
+		
+		return returned;
 	}
 	
 	/**
@@ -1864,7 +1888,7 @@ public class KaryFatTree {
 				finished = true;
 		}
 		
-		System.out.println("Deadlock Shuffle complete");
+		//System.out.println("Deadlock Shuffle complete");
 		
 		// add new final config
 		Collections.sort(servers, Server.svNumComparator);
@@ -1873,6 +1897,408 @@ public class KaryFatTree {
 		
 		addFinal(dshfConf);
 		
+		restore();
+	}
+	
+	/**
+	 * Create a final placement that should have no deadlocks while also moving
+	 * as many VMs as possible.
+	 */
+	public void safeShuffle()
+	{
+		ArrayList<VirtualMachine> notMoved = new ArrayList<VirtualMachine>();
+		ArrayList<VirtualMachine> hasMoved = new ArrayList<VirtualMachine>();
+		
+		// populate list
+		for (Server s : servers)
+		{
+			for (VirtualMachine vm : s.getVMList())
+			{
+				// add vm to list
+				notMoved.add(vm);
+			}
+		}
+		
+		// used to stop alg if nothing further can be moved
+		boolean haltAlg = false;
+		
+		while (!notMoved.isEmpty() && !haltAlg)
+		{
+			haltAlg = true;
+			
+			for (VirtualMachine vmToMove : notMoved)
+			{
+				// details for current VM
+				String vmMoveName = vmToMove.getName();
+				String currentHost = vmToMove.getHost();
+				
+				// get current server of vm to move
+				Server origSV = getServer(currentHost);
+				
+				boolean destFound = false;
+				
+				int ind1 = 0;
+				int nbServers = servers.size();
+				
+				Server currSV;
+				String currName;
+				
+				// shuffle the server list to ensure randomness
+				Collections.shuffle(servers);
+				
+				// while there remains servers to be searched and a destination has
+				// yet to be found
+				while (ind1 < nbServers && !destFound)
+				{
+					// details of current potential destination
+					currSV = servers.get(ind1);
+					currName = currSV.getName();
+					
+					// if current server has space for this VM
+					// and current server is not the VMs host server
+					if (currSV.canMoveIn(vmToMove) && !currName.equals(currentHost))
+					{
+						// get index of VM to move
+						int vmInd = origSV.getVMindex(vmMoveName);
+						
+						// index checks out
+						if (vmInd != -1)
+						{
+							// if move is successful
+							if (moveVM(origSV, vmInd, currSV))
+							{
+								// flag to continue algorithm
+								haltAlg = false;
+								// stop searching for a destination
+								destFound = true;
+								// add VM to "moved" list
+								hasMoved.add(vmToMove);
+							}
+						}
+					}
+					
+					ind1++;
+				}
+			}
+			
+			//edit not moved list to remove any VMs that have moved
+			notMoved.removeAll(hasMoved);
+			
+		}
+		
+		//Finalize
+		
+		Collections.sort(servers, Server.svNumComparator);
+		
+		FinalConfig sshfConf = new FinalConfig("SSHF", servers);
+		
+		addFinal(sshfConf);
+		
+		restore();
+	}
+	
+	/**
+	 * For load balance algorithm. Split server list into two: negative product and positive product
+	 * 
+	 * @param sList List of Servers
+	 * @param cpuAvg average cpu load for all servers
+	 * @param memAvg average memory load for all servers
+	 * @return servers split between
+	 */
+	public ObjPair<ArrayList<Server>, ArrayList<Server>> loadBalSplit(ArrayList<Server> sList, double cpuAvg, double memAvg)
+	{
+		// servers with uneven loads
+		ArrayList<Server> plusMinus = new ArrayList<Server>();
+		// servers with both loads above or below.
+		ArrayList<Server> phase2 = new ArrayList<Server>();
+		
+		//sorting
+		for (Server s : sList)
+		{
+			s.calcGapProd(cpuAvg, memAvg);
+			
+			int sign = s.gapProdSign();
+			
+			if (sign < 0)
+				plusMinus.add(s);
+			else
+				phase2.add(s);
+		}
+		
+		ObjPair<ArrayList<Server>, ArrayList<Server>> lists = new ObjPair<ArrayList<Server>, ArrayList<Server>>(plusMinus, phase2);
+		
+		return lists;
+	}
+	
+	/**
+	 * Load Balance Algorithm phase 1
+	 * Attempt to balance CPU and Memory loads, minimize gaps between these values for each server
+	 * 
+	 * @param slist
+	 * @return
+	 */
+	public ArrayList<Server> lbalPhase1(ArrayList<Server> slist)
+	{
+		boolean halt = false;
+		
+		// while stopping condition has not been fullfilled
+		while (!halt)
+		{
+			// check if a move was made during the loop
+			boolean moveMade = false;
+			
+			// for each server
+			for (Server s1 : slist)
+			{
+				// for each pair of servers
+				for (Server s2 : slist)
+				{
+					// the servers are not the same
+					if (!s1.sameServer(s2))
+					{
+						// resource loads for s1
+						double s1CPUload = s1.getCPUload();
+						double s1MEMload = s1.getMEMload();
+						// resource loads for s2
+						double s2CPUload = s2.getCPUload();
+						double s2MEMload = s2.getMEMload();
+						// gaps for each server
+						double s1gap = Math.abs(s1CPUload - s1MEMload);
+						double s2gap = Math.abs(s2CPUload - s2MEMload);
+						// largest gap
+						double largestGap;
+						// find largest gap
+						if (s1gap < s2gap)
+							largestGap = s2gap;
+						else
+							largestGap = s1gap;
+						
+						int numbVMsS1 = s1.getNbVMs();
+						//indices used for iterating through VM list
+						int indVM = 0;
+						int indVM2 = 0;
+						
+						// if S1 has VMs
+						if (numbVMsS1 > 0)
+						{
+							// while s1 still has VMs
+							while (indVM < numbVMsS1)
+							{
+								// current VM considered for move
+								VirtualMachine current = s1.getVM(indVM2);
+								// check if VM was moved
+								boolean moved = false;
+								
+								// S2 has space available for VM
+								boolean canMove = s2.canMoveIn(current);
+								// new gap for S1
+								double s1GapNew = s1.resGapMinus(indVM2);
+								// new gap for S2
+								double s2GapNew = s2.resGapPlus(current);
+								// check if both new gaps are below largest gap
+								boolean s1GapClear = s1GapNew < largestGap;
+								boolean s2GapClear = s2GapNew < largestGap;
+								// if VM can move in and the new gaps are
+								// lower than current highest gap
+								if (canMove && s1GapClear && s2GapClear)
+								{
+									// move the vm from s1 to s2
+									moveVM(s1, indVM2, s2);
+									// indicate that the VM was moved
+									moved = true;
+									// if a move was made during current loop
+									// do not halt
+									moveMade = true;
+								}
+								
+								// increment second index counter if nothing was moved
+								if (!moved)
+									indVM2++;
+								// increment first counter
+								indVM++;
+							}
+						}
+					}
+				}
+			}
+			
+			// if no move was made during loop, stop alg
+			if (!moveMade)
+				halt = true;
+		}
+		
+		// return updated list
+		return slist;
+	}
+	
+	/**
+	 * Load Balance Algorithm Phase 2
+	 * Move VMs from one server to another, in a manner that brings down the highest load
+	 * of the concerned pair of servers
+	 * 
+	 * @param slist
+	 * @return
+	 */
+	public ArrayList<Server> lbalPhase2(ArrayList<Server> slist)
+	{
+		// stop alg when no further improvement can be made
+		boolean halt = false;
+		// while haling condition not fulfilled
+		while (!halt)
+		{
+			// set to true if a VM has moved during the current cycle
+			boolean moveMade = false;
+			// for each server in list
+			// NOTE: can cut down redundancies, since some pairs will be checked twice 
+			for (Server s1 : slist)
+			{
+				// for each pair of server
+				for (Server s2 : slist)
+				{
+					// two servers in pair are not the same
+					if (!s1.sameServer(s2))
+					{
+						// resource loads for S1
+						double s1CPUload = s1.getCPUload();
+						double s1MEMload = s1.getMEMload();
+						// resource loads for S2
+						double s2CPUload = s2.getCPUload();
+						double s2MEMload = s2.getMEMload();
+						// highest load on S1
+						double s1High;
+						
+						if (s1CPUload < s1MEMload)
+							s1High = s1MEMload;
+						else
+							s1High = s1CPUload;
+						
+						//highest load in S2
+						double s2High;
+						
+						if (s2CPUload < s2MEMload)
+							s2High = s2MEMload;
+						else
+							s2High = s2CPUload;
+						// high
+						double globalHigh;
+						// giving server and receiving server determined by highest
+						Server receiving;
+						Server giving;
+						
+						// determine giving and receiving VM
+						if (s2High > s1High)
+						{
+							globalHigh = s2High;
+							giving = s2;
+							receiving = s1;
+						}
+						else
+						{
+							globalHigh = s1High;
+							giving = s1;
+							receiving = s2;
+						}
+						
+						int numbGVM = giving.getNbVMs();
+						
+						int indVM = 0;
+						int indVM2 = 0;
+						
+						//if giving has VMs
+					
+						if (numbGVM > 0)
+						{
+							// while there are still VMs in giving Server
+							while (indVM < numbGVM)
+							{
+								// current candidate to be moved
+								VirtualMachine current = giving.getVM(indVM2);
+								// if nothing was moved
+								boolean moved = false;
+								// receiving server can accept
+								boolean canBeMoved = receiving.canMoveIn(current);
+								// get CPU and MEM load for giving server minus VM
+								double givMinusLoadCPU = giving.cpuLoadMinus(indVM2);
+								double givMinusLoadMEM = giving.memLoadMinus(indVM2);
+								// get CPU and MEM load for receiving server plus VM
+								double recPlusLoadCPU = receiving.cpuLoadPlus(current);
+								double recPlusLoadMEM = receiving.memLoadPlus(current);
+								// verify if nothing exceeds globalHigh
+								boolean givCPUlower = givMinusLoadCPU < globalHigh;
+								boolean givMEMlower = givMinusLoadMEM < globalHigh;
+								boolean recCPUlower = recPlusLoadCPU < globalHigh;
+								boolean recMEMlower = recPlusLoadMEM < globalHigh;
+								
+								boolean allLower = givCPUlower && givMEMlower &&
+										recCPUlower && recMEMlower;
+								
+								// VM can be moved and, after migration, no load
+								// exceeds current max
+								if (canBeMoved && allLower)
+								{
+									// move VM from giving server to receiving
+									moveVM(giving, indVM2, receiving);
+									// indicate that a VM was moved
+									moved = true;
+									// indicate if a move was made during the current loop
+									moveMade = true;
+								}
+								// if nothing moved, increment second counter
+								if (!moved)
+									indVM2++;
+								// increment first counter
+								indVM++;
+							}
+						}
+					}
+				}
+			}
+			
+			// no movement = terminate alg
+			if (!moveMade)
+				halt = true;
+		}
+		
+		// return updated list
+		return slist;
+	}
+	
+	/**
+	 * Third attempt at load balance algorithm:
+	 * This time we do two operations on the list of servers:
+	 * First, we move VMs to attempt to minimize the gap between CPU and Memory loads
+	 * of the servers.
+	 * Next, we move VMs in a way that minimizes the highest load (CPU or MEM) of the servers
+	 * Operations are done pairwise.
+	 */
+	public void loadBalance3()
+	{
+		// list for servers
+		ArrayList<Server> svlist = new ArrayList<Server>();
+		
+		//copy current server list into temp list
+		for (Server s : servers)
+		{
+			svlist.add(s);
+		}
+		
+		System.out.println("Phase 1 of Load Balance...");
+		// run phase 1
+		svlist = lbalPhase1(svlist);
+		
+		System.out.println("Phase 2 of Load Balance...");
+		
+		// run phase 2
+		svlist = lbalPhase2(svlist);
+		
+		System.out.println("Migrations Complete. Finishing...");
+		
+		// reorder list
+		Collections.sort(svlist, Server.svNumComparator);
+		// record final config
+		FinalConfig lbalConf = new FinalConfig("LBAL", svlist);
+		addFinal(lbalConf);
+		// restore init state
 		restore();
 	}
 }

@@ -243,7 +243,7 @@ public class Driver extends JFrame{
 		//String nbSv = args[0];
 		
 		//String file2path = args[1];
-		
+		// folder containing the .txt file to read
 		String inputDir = args[0];
 		
 		//String nDir = "txt_Output_" + currDate;
@@ -256,6 +256,9 @@ public class Driver extends JFrame{
 		//File csvOutFile = new File(oPath2.toString());
 		
 		File wdir = new File(inputDir);
+		
+		//String dirName = wdir.getName();
+		//String dirNameNoExt = dirName.substring(0,dirName.length() - 4);
 		
 		// list of all files in directory with .txt extension
 		File[] inFiles = wdir.listFiles(new FilenameFilter() {
@@ -607,7 +610,7 @@ public class Driver extends JFrame{
 			if (scToken.equals("LBAL"))
 			{
 				k1.shuffle2(shufflePct);
-				k1.loadBalance2();
+				k1.loadBalance3();
 			}
 			else if (scToken.equals("FAIL"))
 			{
@@ -634,6 +637,10 @@ public class Driver extends JFrame{
 			else if (scToken.equals("DSHF"))
 			{
 				k1.dlShuffle();
+			}
+			else if (scToken.equals("SSHF"))
+			{
+				k1.safeShuffle();
 			}
 		}
 		
@@ -940,8 +947,7 @@ public class Driver extends JFrame{
 			
 			//int vmTot = tree.getVMnum();
 			
-			String fname = "out_" + inName + "_" + fs.getType() + 
-					"_" + fsNum + ".csv";
+			String fname = "out_" + inName + ".csv";
 			
 			finalPathCSV = Paths.get(outPath, fname);
 			

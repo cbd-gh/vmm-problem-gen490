@@ -31,6 +31,9 @@ public class Server {
 	private ArrayList<VirtualMachine> vmList = new ArrayList<VirtualMachine>();
 	// occupancy rate of server
 	private double load;
+	// used for load balance. product of both gaps from average
+	private double gapProd = 0;
+	
 	
 	// CONSTRUCTORS
 	
@@ -262,6 +265,16 @@ public class Server {
 	public void setSVnum(int nnum)
 	{
 		number = nnum;
+	}
+	
+	public double getGapProd()
+	{
+		return gapProd;
+	}
+	
+	public void setGapProd(double newProd)
+	{
+		gapProd = newProd;
 	}
 	
 	// OTHER
@@ -918,6 +931,250 @@ public class Server {
 	}
 	
 	/**
+	 * set the product of the gap from resource averages provided
+	 * store averages provided for later use
+	 * 
+	 * @param cpuAvg
+	 * @param memAvg
+	 */
+	public void calcGapProd(double cpuAvg, double memAvg)
+	{
+		double cpuGap = getCPUload() - cpuAvg;
+		double memGap = getMEMload() - memAvg;
+		
+		double gProd = cpuGap * memGap;
+	
+		// set gap product
+		setGapProd(gProd);
+	}
+	
+	/**
+	 * return the sign of the gap product
+	 * 
+	 * @return
+	 */
+	public int gapProdSign()
+	{
+		double gp = getGapProd();
+		
+		if (gp > 0)
+			return 1;
+		else if (gp < 0)
+			return -1;
+		else
+			return 0;
+	}
+	
+	/**
+	 * check whether current server load exceeds or not average cpu load of system.
+	 * 
+	 * @return
+	 */
+	public int cpuGapSign(double cpuAvg)
+	{
+		double result = getCPUload() - cpuAvg;
+		
+		if (result < 0)
+			return -1;
+		else if (result > 0)
+			return 1;
+		else
+			return 0;
+	}
+	
+	/**
+	 * check whether current server exceeds or not average memory load of system
+	 * 
+	 * @return
+	 */
+	public int memGapSign(double memAvg)
+	{
+		double result = getMEMload() - memAvg;
+		
+		if (result < 0)
+			return -1;
+		else if (result > 0)
+			return 1;
+		else
+			return 0;
+	}
+	
+	/**
+	 * check if this server and another server (s2) have opposite signs for 
+	 * resource load gaps
+	 * 
+	 * @param s2 server to compare to
+	 * @return true if opposite, false otherwise
+	 */
+	public boolean oppositeLoadSigns(Server s2, double cpuAvg, double memAvg)
+	{
+		// server 1's resource gap
+		int s1cpu = cpuGapSign(cpuAvg);
+		int s1mem = memGapSign(memAvg);
+		// server 2's resource gap
+		int s2cpu = s2.cpuGapSign(cpuAvg);
+		int s2mem = s2.memGapSign(memAvg);
+		
+		// there exists a resource gap for all resources
+		if (s1cpu != 0 && s2cpu != 0 && s1mem != 0 && s2mem != 0)
+		{
+			// the servers have one resource above mean and one below
+			if ((s1cpu != s1mem) && (s2cpu != s2mem))
+			{
+				// the signs for both servers are opposite
+				if ((s1cpu != s2cpu) && (s1mem != s2mem))
+					return true;
+			}
+		}
+		
+		// else return false
+		return false;
+	}
+	
+	/**
+	 * true if Server has one resource above mean and one below
+	 * 
+	 * @return
+	 */
+	public boolean oppoSigns(double cpuAvg, double memAvg)
+	{
+		int gCPU = cpuGapSign(cpuAvg);
+		int gMEM = memGapSign(memAvg);
+		
+		// neither is at 0
+		if (gCPU != 0 && gMEM != 0)
+		{
+			// signs are opposite
+			if (gCPU != gMEM)
+				return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * check if adding a VM will unbalance the loads
+	 * we want to avoid having the loads
+	 * 
+	 * @param vma vm to add to server
+	 * @return true if loads are both above of below average, false otherwise
+	 */
+	public boolean addSignCheck(VirtualMachine vma)
+	{
+		return true;
+	}
+	
+	/**
+	 * check if this server is the same
+	 * (only works for comparing servers in same system)
+	 * 
+	 * @param other
+	 * @return
+	 */
+	public boolean sameServer(Server other)
+	{
+		if (getName().equals(other.getName()))
+			return true;
+		else
+			return false;
+	}
+	
+	/**
+	 * return gap between resource loads plus given VM
+	 * 
+	 * @param toAdd VM to add to server
+	 * @return
+	 */
+	public double resGapPlus(VirtualMachine toAdd)
+	{
+		// get CPU and memory load with added VM
+		double cpuPlus = ((double) getUProc() + toAdd.getProc()) / getTProc();
+		double memPlus = ((double) getUMem() + toAdd.getMem()) / getTMem();
+		// calculate gap between resource loads
+		double resGap = Math.abs(cpuPlus - memPlus);
+		
+		return resGap;
+	}
+	
+	/**
+	 * calculate resource gap minus VM of given index
+	 * 
+	 * @param vmInd index of contained VM to remove from server
+	 * @return new gap with VM removed
+	 */
+	public double resGapMinus(int vmInd)
+	{
+		// vm to remove
+		VirtualMachine vmr = getVMList().get(vmInd);
+		
+		// get updated resource loads
+		double cpuMinus = ((double) getUProc() - vmr.getProc()) / getTProc();
+		double memMinus = ((double) getUMem() - vmr.getMem()) / getTMem();
+		// calculate gap between new resource loads
+		double resGap = Math.abs(cpuMinus - memMinus);
+		
+		return resGap;
+	}
+	
+	/**
+	 * calculate cpu load with target VM
+	 * 
+	 * @param vma VM to add
+	 * @return
+	 */
+	public double cpuLoadPlus(VirtualMachine vma)
+	{
+		double cpuPlus = ((double) getUProc() + vma.getProc()) / getTProc();
+		
+		return cpuPlus;
+	}
+	
+	/**
+	 * calculate cpu load minus a VM
+	 * 
+	 * @param vmInd index of VM to remove
+	 * @return
+	 */
+	public double cpuLoadMinus(int vmInd)
+	{
+		VirtualMachine vmr = getVM(vmInd);
+		
+		double cpuMinus = ((double) getUProc() - vmr.getProc()) / getTProc();
+		
+		return cpuMinus;
+	}
+	
+	/**
+	 * calculate memory load plus given VM
+	 * 
+	 * @param vma VM to add to server
+	 * @return
+	 */
+	public double memLoadPlus(VirtualMachine vma)
+	{
+		double memPlus = ((double) getUMem() + vma.getMem()) / getTMem();
+		
+		return memPlus;
+	}
+	
+	/**
+	 * calculate memory load minus a VM
+	 * 
+	 * @param vmIndex index of VM to remove
+	 * @return
+	 */
+	public double memLoadMinus(int vmIndex)
+	{
+		VirtualMachine vmr = getVM(vmIndex);
+		
+		double memMinus = ((double) getUMem() - vmr.getMem()) / getTMem();
+		
+		return memMinus;
+	}
+	
+	// COMPARATORS
+	
+	/**
 	 * Comparator object to sort servers by load
 	 * source for idea: https://beginnersbook.com/2013/12/java-arraylist-of-object-sort-example-comparable-and-comparator/
 	 */
@@ -991,5 +1248,48 @@ public class Server {
 		
 	};
 	
+	/**
+	 * compare servers by CPU load
+	 * 
+	 */
+	public static Comparator<Server> svCPULoadComparator = new Comparator<Server>() {
+		
+		public int compare(Server s1, Server s2) {
+			
+			double load1 = s1.getCPUload();
+			double load2 = s2.getCPUload();
+			
+			// ascending order
+			double comp = load1 - load2;
+			
+			if (comp < 0)
+				return -1;
+			else if (comp == 0)
+				return 0;
+			else
+				return 1;
+		}
+		
+	};
 	
+	/**
+	 * gap product. absolute value. smallest to largest.
+	 */
+	public static Comparator<Server> svLoadProductComparator = new Comparator<Server>() {
+		
+		public int compare(Server s1, Server s2) {
+			
+			double gp1 = Math.abs(s1.getGapProd());
+			double gp2 = Math.abs(s2.getGapProd());
+			
+			double comp = gp1 - gp2;
+			
+			if (comp < 0)
+				return -1;
+			else if (comp > 0)
+				return 1;
+			else
+				return 0;
+		}
+	};
 }
